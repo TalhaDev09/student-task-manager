@@ -1,42 +1,108 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+// LocalStorage'dan verileri çek veya boş dizi oluştur
+let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+let myChart;
+
+// Sayfa yüklendiğinde listeyi getir
+document.addEventListener('DOMContentLoaded', renderTasks);
+
+function updateDashboard() {
+    const completedCount = tasks.filter(t => t.completed).length;
+    const pendingCount = tasks.length - completedCount;
+    
+    // Sayaçları güncelle
+    document.getElementById('totalTasks').innerText = tasks.length;
+    document.getElementById('compText').innerText = completedCount;
+    document.getElementById('pendText').innerText = pendingCount;
+    
+    // Durum mesajı
+    const msg = document.getElementById('statusMsg');
+    if(tasks.length === 0) msg.innerText = "Liste boş, yeni görev ekle!";
+    else if(pendingCount === 0) msg.innerText = "Harika! Tüm görevler bitti. 🎉";
+    else msg.innerText = "Devam et, başarabilirsin! 💪";
+
+    // Grafik (Chart.js) Güncelleme
+    const ctx = document.getElementById('taskChart').getContext('2d');
+    if (myChart) myChart.destroy(); // Eski grafiği sil (çakışmaması için)
+    
+    myChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Tamamlanan', 'Bekleyen'],
+            datasets: [{
+                data: [completedCount, pendingCount],
+                backgroundColor: ['#4f46e5', '#e2e8f0'],
+                hoverOffset: 4,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            cutout: '75%',
+            plugins: { legend: { display: false } }
+        }
+    });
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+function renderTasks() {
+    const taskList = document.getElementById('taskList');
+    taskList.innerHTML = '';
+
+    tasks.forEach((task, index) => {
+        const tr = document.createElement('tr');
+        tr.className = `border-b border-gray-50 transition ${task.completed ? 'task-done' : ''}`;
+        
+        tr.innerHTML = `
+            <td class="p-5">
+                <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                    onchange="toggleTask(${index})" 
+                    class="w-6 h-6 rounded-lg accent-indigo-600 cursor-pointer">
+            </td>
+            <td class="p-5 font-medium ${task.completed ? 'line-through text-gray-400' : 'text-gray-700'}">
+                ${task.text}
+            </td>
+            <td class="p-5 text-gray-500 text-sm">
+                ${task.date ? task.date : 'Belirtilmedi'}
+            </td>
+            <td class="p-5 text-right">
+                <button onclick="deleteTask(${index})" class="text-red-400 hover:text-red-600 font-bold px-3 py-1 rounded-lg hover:bg-red-50 transition">
+                    Sil
+                </button>
+            </td>
+        `;
+        taskList.appendChild(tr);
+    });
+
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    updateDashboard();
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+function addTask() {
+    const taskInput = document.getElementById('taskInput');
+    const dateInput = document.getElementById('dateInput');
+    
+    if (taskInput.value.trim() === '') {
+        alert("Lütfen bir görev yazın!");
+        return;
+    }
+
+    tasks.push({
+        text: taskInput.value,
+        date: dateInput.value,
+        completed: false
+    });
+
+    taskInput.value = '';
+    dateInput.value = '';
+    renderTasks();
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+function toggleTask(index) {
+    tasks[index].completed = !tasks[index].completed;
+    renderTasks();
 }
 
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+function deleteTask(index) {
+    if(confirm("Bu görevi silmek istediğine emin misin?")) {
+        tasks.splice(index, 1);
+        renderTasks();
+    }
 }
